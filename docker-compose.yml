@@ -1,0 +1,12 @@
+version: '2'
+
+services:
+    webpack:
+        build:
+            ./.docker
+        ports:
+            - 8082:8082
+        volumes:
+            - ./:/var/www/infinity.dev
+        command: "webpack-dev-server --host 0.0.0.0 --port 8082"
+        #command: tail -f /dev/null

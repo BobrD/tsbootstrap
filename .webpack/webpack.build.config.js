@@ -1,16 +1,16 @@
 const path = require('path');
 
 module.exports = {
-    entry: './src/main.tsx',
+    entry: './src/index.ts',
 
     output: {
-        filename: 'main.js',
-        path: path.resolve(__dirname, 'dist')
+        filename: 'index.js',
+        path: path.resolve(__dirname, './../dist')
     },
 
-    watch: true,
+    context: path.resolve(__dirname, './../'),
 
-    devtool: 'eval',
+    watch: false,
 
     module: {
         rules: [
@@ -18,7 +18,7 @@ module.exports = {
                 test: /\.tsx?$/,
                 loader: "awesome-typescript-loader",
                 options: {
-                    transpileOnly: true
+                    configFileName: 'tsconfig.build.json'
                 }
             }
         ]

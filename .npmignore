@@ -1,0 +1,9 @@
+tsconfig.json
+src
+.webpack
+.docker
+.gitignore
+index.html
+docker-compose.yml
+tsconfig.build.json
+.idea

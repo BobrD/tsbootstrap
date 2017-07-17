@@ -1,14 +1,18 @@
 {
-  "name": "infinity.dev",
-  "version": "1.0.0",
-  "description": "",
-  "main": "webpack.config.js",
+  "name": "bookie-infinity",
+  "version": "0.0.4",
+  "description": "React infinity scoll list.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "author": "Eugene Bober",
+  "license": "MIT",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "webpack -p --config ./.webpack/webpack.build.config.js"
   },
-  "author": "",
-  "license": "ISC",
   "devDependencies": {
+    "@types/react": "^15.0.38",
+    "@types/react-dom": "^15.5.1",
+    "@types/react-measure": "^0.4.7",
     "awesome-typescript-loader": "^3.2.1",
     "typescript": "^2.4.1",
     "webpack": "^3.2.0",

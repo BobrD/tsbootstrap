@@ -1,7 +1,7 @@
 const path = require('path');
 
 module.exports = {
-    entry: './src/examples/main.tsx',
+    entry: './src/examples/serverSide.tsx',
 
     output: {
         filename: 'main.js',
@@ -11,6 +11,8 @@ module.exports = {
     watch: true,
 
     devtool: 'eval',
+
+    context: path.resolve(__dirname, './../'),
 
     module: {
         rules: [

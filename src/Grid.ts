@@ -1,9 +1,10 @@
 export interface IItem {
     height: number;
     width: number;
-    i: number;
-
+    key: string | number;
     positions: [number, number][]
+
+    props: any
 }
 
 interface IPosition {
@@ -20,6 +21,10 @@ export class Cell {
         }
 
         this._item = item;
+    }
+
+    update(item: IItem) {
+        this.item = item;
     }
 
     set item(item: IItem) {
@@ -39,7 +44,7 @@ export class Row  {
     private _emptyCells = [];
 
     constructor(private _countCell: number) {
-        [...new Array(_countCell)].forEach((_, i) => {
+        Array.apply(void 0, {length: _countCell}).forEach((_, i) => {
             this._cells.push(new Cell);
             this._emptyCells.push(i);
         });
@@ -88,6 +93,22 @@ export class Grid {
 
     clear() {
         this._rows = [];
+    }
+
+    update(items: IItem[]) {
+        const asMap = {};
+
+        items.forEach(item => asMap[item.key] = item);
+
+        this.rows.forEach(row => {
+            row.cells.forEach(cell => {
+                if (void 0 !== cell.item) {
+                    cell.item.props = (asMap[cell.item.key] || cell.item).props;
+
+                    cell.update(cell.item);
+                }
+            });
+        });
     }
 
     get rows() {

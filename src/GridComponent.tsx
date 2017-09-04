@@ -1,8 +1,12 @@
-import {Grid} from "./Grid";
-import {IItemProvider} from "./IItemProvider";
-import {IElementFactory} from "./ElementFactory";
+import {Grid, IItem} from "./Grid";
+import {IItemProvider} from "./ItemProvider";
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
+import {serverSide} from "./isServerSide";
+
+export interface IElementFactory {
+    (element: IItem, position: {x: number, y: number, width: number, height: number}): any;
+}
 
 export interface IGridComponentProps {
     provider: IItemProvider,
@@ -10,17 +14,37 @@ export interface IGridComponentProps {
     base: number
 }
 
+const makeCancelable = (promise) => {
+    let hasCanceled_ = false;
+
+    const wrappedPromise = new Promise((resolve, reject) => {
+        promise.then(
+            val => hasCanceled_ ? reject({isCanceled: true}) : resolve(val),
+            error => hasCanceled_ ? reject({isCanceled: true}) : reject(error)
+        );
+    });
+
+    return {
+        promise: wrappedPromise,
+        cancel() {
+            hasCanceled_ = true;
+        },
+    };
+};
+
 export class GridComponent extends React.Component<IGridComponentProps, any> {
 
     private _grid: Grid;
 
-    private _scroll = window.scrollY;
+    private _scroll = serverSide ? 1000 : window.scrollY;
 
     private _loadedCount = 0;
 
     private _parent;
 
     private _noHoverTimer;
+
+    private _loadItemsPromise: {promise: Promise<any>, cancel: () => void} = makeCancelable(Promise.resolve());
 
     state = {
         top: 0,
@@ -29,6 +53,13 @@ export class GridComponent extends React.Component<IGridComponentProps, any> {
 
     componentWillMount() {
         this._grid = new Grid(this.props.base);
+
+        this.props.provider.onReset(this.onReset);
+        this.props.provider.onUpdate(this.onUpdate);
+
+        if (serverSide) {
+            this.updateState();
+        }
     }
 
     componentDidMount() {
@@ -36,25 +67,47 @@ export class GridComponent extends React.Component<IGridComponentProps, any> {
 
         this.updateState();
 
+        if (serverSide) {
+            return;
+        }
+
         window.addEventListener('resize', this.updateState);
         window.addEventListener('scroll', this.onScroll);
         window.addEventListener('scroll', this.disableHoverOnScroll);
     }
 
-    componentWillReceiveProps({provider}: IGridComponentProps) {
-        provider.onReset(() => {
-            this._loadedCount = 0;
+    componentWillReceiveProps({provider, base, elementFactory}: IGridComponentProps) {
+        if (provider === this.props.provider) {
+            provider.onReset(this.onReset);
+            provider.onUpdate(this.onUpdate);
+        }
 
-            this._grid.clear();
+        if (base !== this.props.base) {
+            this._grid = new Grid(base);
 
             this.updateState();
-        });
+        }
+
+        if (elementFactory !== this.props.elementFactory) {
+            this.updateState();
+        }
     }
 
     componentWillUnmount() {
+        clearTimeout(this._noHoverTimer);
+
+        if (serverSide) {
+            return;
+        }
+
         window.removeEventListener('resize', this.updateState);
         window.removeEventListener('scroll', this.onScroll);
         window.removeEventListener('scroll', this.disableHoverOnScroll);
+
+        // remove on reset listener
+        this.props.provider.onReset(() => {});
+
+        this._loadItemsPromise.cancel();
     }
 
     render() {
@@ -65,7 +118,8 @@ export class GridComponent extends React.Component<IGridComponentProps, any> {
                 ref='container'
                 className="__bookie-grid"
                 style={{
-                    height: `${this._grid.rows.length * this.baseInPixels}px`
+                    height: `${this._grid.rows.length * this.baseInPixels}px`,
+                    position: 'relative'
                 }}
             >
                 {this.createCells(top, bottom)}
@@ -73,9 +127,17 @@ export class GridComponent extends React.Component<IGridComponentProps, any> {
         );
     }
 
+    private getCurrentScrollY() {
+        if (serverSide) {
+            return 1000;
+        }
+
+        return window.scrollY;
+    }
+
     private onScroll = () => {
-        if (Math.abs(this._scroll - window.scrollY) > this.baseInPixels) {
-            this._scroll = window.scrollY;
+        if (Math.abs(this._scroll - this.getCurrentScrollY()) > this.baseInPixels / 2) {
+            this._scroll = this.getCurrentScrollY();
 
             this.updateState();
         }
@@ -85,9 +147,15 @@ export class GridComponent extends React.Component<IGridComponentProps, any> {
         const {top, bottom} = this.computeRenderIndex();
 
         if (bottom >= this._grid.rows.length) {
-            this.load(100).then(() => {
+            if (serverSide) {
+                this.load(100);
+
                 this.setState({top, bottom});
-            });
+            } else {
+                (this.load(100) as Promise<any>).then(() => {
+                    this.setState({top, bottom});
+                }).catch(() => {});
+            }
 
             return;
         }
@@ -95,23 +163,36 @@ export class GridComponent extends React.Component<IGridComponentProps, any> {
         this.setState({top, bottom});
     };
 
-    private get offsetTop() {
-        return (this.refs.container as HTMLDivElement).offsetTop;
-    };
-
     private get baseInPixels() {
         return this._parent ? this._parent.clientWidth / this.props.base : 0;
     }
 
-    private async load(count: number) {
-        const items = await this.props.provider.getItems(this._loadedCount,  count);
+    private load(count: number): Promise<any> | void {
+        // cancel prev promise
+        this._loadItemsPromise.promise.catch(() => {});
 
+        this._loadItemsPromise.cancel();
+
+        if (serverSide) {
+            const items = this.props.provider.getItems(this._loadedCount,  count);
+
+            this.handleLoaded(items);
+        } else {
+            // start async load
+            this._loadItemsPromise = makeCancelable(this.props.provider.getItems(this._loadedCount,  count));
+
+            return this._loadItemsPromise.promise.then(this.handleLoaded);
+        }
+    }
+
+    private handleLoaded = (items) =>
+    {
         this._loadedCount += items.length;
 
         items.forEach(item => this._grid.push(item));
 
         this.forceUpdate();
-    }
+    };
 
     // todo optimize me
     private createCells(top, bottom): React.ReactElement<any>[] {
@@ -127,7 +208,7 @@ export class GridComponent extends React.Component<IGridComponentProps, any> {
 
                 if (
                     void 0 === item ||
-                    void 0 !== item && -1 !== placed.indexOf(item.i)
+                    void 0 !== item && -1 !== placed.indexOf(item.key)
                 ) {
                     return;
                 }
@@ -138,21 +219,20 @@ export class GridComponent extends React.Component<IGridComponentProps, any> {
                     return;
                 }
 
-                placed.push(item.i);
+                placed.push(item.key);
 
                 const x = cellIndex * this.baseInPixels;
-                const y = this.offsetTop + rowIndex * this.baseInPixels;
+                const y = rowIndex * this.baseInPixels;
                 const width = item.width * this.baseInPixels;
                 const height = item.height * this.baseInPixels;
 
                 cellElements.push(<div
                     className="__bookie-grid__cell-container"
-                    key={item.i}
+                    key={item.key}
                     style={{
-                        top: 0,
-                        left: 0,
+                        top: `${y}px`,
+                        left: `${x}px`,
                         position: 'absolute',
-                        transform: `translateX(${x}px) translateY(${y}px)`,
                         width: `${width}px`,
                         height: `${height}px`,
                     }}
@@ -174,7 +254,11 @@ export class GridComponent extends React.Component<IGridComponentProps, any> {
     };
 
     private computeRenderIndex(): {top: number, bottom: number} {
-        const firstTopVisibleRow = Math.ceil(window.scrollY / this.baseInPixels);
+        if (serverSide) {
+            return {top: 0, bottom: 5};
+        }
+
+        const firstTopVisibleRow = Math.ceil((this.getCurrentScrollY() - (this.refs.container as HTMLDivElement).offsetTop) / this.baseInPixels) - 1;
 
         const viewPort = Math.max(4, Math.ceil(window.innerHeight / this.baseInPixels));
 
@@ -186,4 +270,18 @@ export class GridComponent extends React.Component<IGridComponentProps, any> {
 
         return {top: topRowForRender, bottom: bottomRowForRender};
     }
+
+    private onUpdate = (items: IItem[]) => {
+        this._grid.update(items);
+
+        this.forceUpdate();
+    };
+
+    private onReset = () => {
+        this._loadedCount = 0;
+
+        this._grid.clear();
+
+        this.updateState();
+    };
 }

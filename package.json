@@ -1,13 +1,13 @@
 {
   "name": "bookie-infinity",
-  "version": "0.0.4",
+  "version": "0.0.995",
   "description": "React infinity scoll list.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "author": "Eugene Bober",
   "license": "MIT",
   "scripts": {
-    "build": "webpack -p --config ./.webpack/webpack.build.config.js"
+    "build": "webpack --config ./.webpack/webpack.build.config.js"
   },
   "devDependencies": {
     "@types/react": "^15.0.38",

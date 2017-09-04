@@ -1,6 +1,6 @@
 {
   "name": "bookie-infinity",
-  "version": "0.0.995",
+  "version": "0.0.996",
   "description": "React infinity scoll list.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

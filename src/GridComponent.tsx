@@ -118,7 +118,7 @@ export class GridComponent extends React.Component<IGridComponentProps, any> {
                 ref='container'
                 className="__bookie-grid"
                 style={{
-                    height: `${this._grid.rows.length * this.baseInPixels}px`,
+                    paddingBottom: `${this._grid.rows.length * this.baseInPtc}%`,
                     position: 'relative'
                 }}
             >
@@ -165,6 +165,10 @@ export class GridComponent extends React.Component<IGridComponentProps, any> {
 
     private get baseInPixels() {
         return this._parent ? this._parent.clientWidth / this.props.base : 0;
+    }
+
+    private get baseInPtc() {
+        return 100 / this.props.base;
     }
 
     private load(count: number): Promise<any> | void {
@@ -221,22 +225,26 @@ export class GridComponent extends React.Component<IGridComponentProps, any> {
 
                 placed.push(item.key);
 
-                const x = cellIndex * this.baseInPixels;
-                const y = rowIndex * this.baseInPixels;
-                const width = item.width * this.baseInPixels;
-                const height = item.height * this.baseInPixels;
+                const x = cellIndex * this.baseInPtc;
+                const y = rowIndex * this.baseInPtc;
+                const width = item.width * this.baseInPtc;
+                const height = item.height * this.baseInPtc;
+
+                const styles = {
+                    marginTop: `${y}%`,
+                    left: `${x}%`,
+                    position: 'absolute',
+                    width: `${width}%`,
+                    paddingBottom: `${height}%`,
+                    overflow: 'hidden',
+                    transform: 'translateZ(0)'
+                };
 
                 cellElements.push(<div
                     className="__bookie-grid__cell-container"
                     key={item.key}
-                    style={{
-                        top: `${y}px`,
-                        left: `${x}px`,
-                        position: 'absolute',
-                        width: `${width}px`,
-                        height: `${height}px`,
-                    }}
-                >{this.props.elementFactory(item, {x, y, width, height})}</div>);
+                    style={styles as any}
+                >{this.props.elementFactory(item, {x, y, width: item.height * this.baseInPixels, height: item.height * this.baseInPixels})}</div>);
             });
         });
 
@@ -255,7 +263,7 @@ export class GridComponent extends React.Component<IGridComponentProps, any> {
 
     private computeRenderIndex(): {top: number, bottom: number} {
         if (serverSide) {
-            return {top: 0, bottom: 5};
+            return {top: 0, bottom: 100};
         }
 
         const firstTopVisibleRow = Math.ceil((this.getCurrentScrollY() - (this.refs.container as HTMLDivElement).offsetTop) / this.baseInPixels) - 1;

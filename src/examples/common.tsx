@@ -82,6 +82,7 @@ export class App extends React.Component<any, any> {
     }
 
     private setSet(count: number) {
+
         this._provider.setItems(generate(count));
 
 

@@ -1,7 +1,7 @@
 const path = require('path');
 
 module.exports = {
-    entry: './src/examples/serverSide.tsx',
+    entry: './src/examples/main.tsx',
 
     output: {
         filename: 'main.js',
